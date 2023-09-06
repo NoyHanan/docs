@@ -454,8 +454,8 @@ const result = await collection.query({
 
 
 The query will return the `n_results` closest matches to each `query_embedding`, in order.
-An optional `where` filter dictionary can be supplied to filter the results by the `metadata` associated with each document.
-Additionally, an optional `where_document` filter dictionary can be supplied to filter the results by contents of the document.
+An optional `where` filter dictionary can be supplied to filter by the `metadata` associated with each document.
+Additionally, an optional `where_document` filter dictionary can be supplied to filter by contents of the document.
 
 If the supplied `query_embeddings` are not the same dimension as the collection, an exception will be raised.
 
@@ -621,6 +621,37 @@ An `$or` operator will return results that match any of the filters in the list.
 }
 ```
 
+##### Using inclusion operators (`$in` and `$nin`)
+
+The following inclusion operators are supported:
+
+- `$in` - a value is in predefined list (string, int, float, bool)
+- `$nin` - a value is not in predefined list (string, int, float, bool)
+
+An `$in` operator will return results where the metadata attribute is part of a provided list:
+
+```json
+{
+    "metadata_field": {
+        "$in": ["value1", "value2", "value3"]
+    }
+}
+```
+
+An `$nin` operator will return results where the metadata attribute is not part of a provided list:
+
+```json
+{
+    "metadata_field": {
+        "$nin": ["value1", "value2", "value3"]
+    }
+}
+```
+
+:::note Practical examples
+For additional examples and a demo how to use the inclusion operators, please see provided notebook [here](https://github.com/chroma-core/chroma/blob/main/examples/basic_functionality/in_not_in_filtering.ipynb)
+:::
+
 <Tabs queryString groupId="lang" className="hideTabSwitcher">
 <TabItem value="py" label="Python">
 
@@ -720,18 +751,15 @@ You can configure Chroma to use authentication when in server/client mode only.
 
 Supported authentication methods:
 
-| Authentication Method | Basic Auth (Pre-emptive)                                                                                                  |
-|-----------------------|---------------------------------------------------------------------------------------------------------------------------|
-| Description           | [RFC 7617](https://www.rfc-editor.org/rfc/rfc7617) Basic Auth with `user:password` base64-encoded `Authorization` header. |
-| Status                | `Alpha`                                                                                                                   |
-| Server-Side Support   | ✅ `Alpha`                                                                                                                |
-| Client/Python         | ✅                                                                                                                        |
-| Client/JS             | ➖                                                                                                                        |
+| Authentication Method | Basic Auth (Pre-emptive)                                                                                                  | Static API Token |
+|-----------------------|---------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
+| Description           | [RFC 7617](https://www.rfc-editor.org/rfc/rfc7617) Basic Auth with `user:password` base64-encoded `Authorization` header. |  Static auth token in `Authorization: Bearer <tokem>` or in `X-Chroma-Token: <token>` headers.|
+| Status                | `Alpha`                                                                                                                   |  `Alpha`                                                                                      |
+| Server-Side Support   | ✅ `Alpha`                                                                                                                | ✅ `Alpha`                                                                                    |
+| Client/Python         | ✅                                                                                                                        | ✅                                                                                            |
+| Client/JS             | ✅                                                                                                                        |  ➖                                                                                           |
 
 ### Basic Authentication
-
-<Tabs queryString groupId="lang" className="hideTabSwitcher">
-<TabItem value="py" label="Python">
 
 #### Server Setup
 
@@ -751,8 +779,70 @@ Create a `.chroma_env` file with the following contents:
 
 ```ini title=".chroma_env"
 CHROMA_SERVER_AUTH_CREDENTIALS_FILE="/chroma/server.htpasswd"
-CHROMA_SERVER_AUTH_CREDENTIALS_PROVIDER='chromadb.auth.providers.HtpasswdFileServerAuthCredentialsProvider'
-CHROMA_SERVER_AUTH_PROVIDER='chromadb.auth.basic.BasicAuthServerProvider'
+CHROMA_SERVER_AUTH_CREDENTIALS_PROVIDER="chromadb.auth.providers.HtpasswdFileServerAuthCredentialsProvider"
+CHROMA_SERVER_AUTH_PROVIDER="chromadb.auth.basic.BasicAuthServerProvider"
+```
+
+```bash
+docker-compose --env-file ./.chroma_env up -d --build
+```
+
+<Tabs queryString groupId="lang" className="hideTabSwitcher">
+<TabItem value="py" label="Python">
+
+#### Client Setup
+
+```python
+import chromadb
+from chromadb.config import Settings
+
+client = chromadb.HttpClient(
+  settings=Settings(chroma_client_auth_provider="chromadb.auth.basic.BasicAuthClientProvider",chroma_client_auth_credentials="admin:admin"))
+client.heartbeat()  # this should work with or without authentication - it is a public endpoint
+
+client.get_version()  # this should work with or without authentication - it is a public endpoint
+
+client.list_collections()  # this is a protected endpoint and requires authentication
+```
+
+</TabItem>
+<TabItem value="js" label="JavaScript">
+
+#### Client Setup
+
+```js
+import { ChromaClient } from 'chromadb'
+
+const client = new ChromaClient({auth: {provider: "basic", credentials: "admin:admin"}});
+```
+
+</TabItem>
+</Tabs>
+
+
+### Static API Token Authentication
+
+:::note Tokens
+Tokens must be alphanumeric ASCII strings. Tokens are case-sensitive.
+:::
+
+<Tabs queryString groupId="lang" className="hideTabSwitcher">
+<TabItem value="py" label="Python">
+
+#### Server Setup
+
+:::note Security Note
+Current implementation of static API token auth supports only ENV based tokens. 
+:::
+
+##### Running the Server
+
+Create a `.chroma_env` file with the following contents:
+
+```ini title=".chroma_env"
+CHROMA_SERVER_AUTH_CREDENTIALS="test-token"
+CHROMA_SERVER_AUTH_CREDENTIALS_PROVIDER="chromadb.auth.token.TokenConfigServerAuthCredentialsProvider"
+CHROMA_SERVER_AUTH_PROVIDER="chromadb.auth.token.TokenAuthServerProvider"
 ```
 
 ```bash
@@ -766,7 +856,8 @@ import chromadb
 from chromadb.config import Settings
 
 client = chromadb.HttpClient(
-  settings=Settings(chroma_client_auth_provider="chromadb.auth.basic.BasicAuthClientProvider",chroma_client_auth_credentials="admin:admin"))
+    settings=Settings(chroma_client_auth_provider="chromadb.auth.token.TokenAuthClientProvider",
+                      chroma_client_auth_credentials="test-token"))
 client.heartbeat()  # this should work with or without authentication - it is a public endpoint
 
 client.get_version()  # this should work with or without authentication - it is a public endpoint
