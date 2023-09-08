@@ -33,11 +33,11 @@ import TabItem from '@theme/TabItem';
 | Default EF (miniLM)   | ➖   | ➖  | ➖   | ➖  | ➖   |
 | Sentence Transformers | ➖   | ➖  | ➖   | ➖  | ✅   |
 | OpenAI                | ✅   | ✅  | ➖   | ✅  | ✅   |
-| Cohere                | ✅   | ➖  | ➖   | ➖  | ➖   |
+| Cohere                | ✅   | ✅  | ➖   | ➖  | ➖   |
 | Instructor models     | ➖   | ➖  | ➖   | ➖  | ➖   |
 | Google PaLM           | ➖   | ➖  | ➖   | ➖  | ➖   |
-| HuggingFace           | ✅   | ➖  | ✅   | ➖  | ➖   |
-| Custom                | ➖   | ➖  | ➖   | ➖  | ➖   |
+| HuggingFace           | ✅   | ✅  | ✅   | ➖  | ➖   |
+| Custom                | ➖   | ➖  | ➖   | ➖  | ✅   |
 
 <div class="select-language">Select a language</div>
 
@@ -175,9 +175,6 @@ openai_ef = embedding_functions.OpenAIEmbeddingFunction(
 const { OpenAIEmbeddingFunction } = require('chromadb');
 const embedder = new OpenAIEmbeddingFunction({ openai_api_key: 'apiKey' });
 
-// use directly
-const embeddings = embedder.generate(['document1', 'document2']);
-
 // pass documents to query for .add and .query
 const collection = await client.createCollection({
 	name: 'name',
@@ -186,6 +183,17 @@ const collection = await client.createCollection({
 const collection = await client.getCollection({
 	name: 'name',
 	embeddingFunction: embedder,
+});
+
+// use directly
+const embeddings = await embedder.generate(['document1', 'document2']);
+
+// Add documents to the collection along with their associated embeddings.
+// Chroma will store these documents without generating its own embeddings.
+await collection.add({
+	ids: ['id1', 'id2'],
+	embeddings: embeddings,
+	documents: ['document1', 'document2'],
 });
 ```
 
@@ -216,9 +224,6 @@ cohere_ef(texts=["document1","document2"])
 const { CohereEmbeddingFunction } = require('chromadb');
 const embedder = new CohereEmbeddingFunction('apiKey');
 
-// use directly
-const embeddings = embedder.generate(['document1', 'document2']);
-
 // pass documents to query for .add and .query
 const collection = await client.createCollection({
 	name: 'name',
@@ -227,6 +232,17 @@ const collection = await client.createCollection({
 const collectionGet = await client.getCollection({
 	name: 'name',
 	embeddingFunction: embedder,
+});
+
+// use directly
+const embeddings = embedder.generate(['document1', 'document2']);
+
+// Add documents to the collection along with their associated embeddings.
+// Chroma will store these documents without generating its own embeddings.
+await collection.add({
+	ids: ['id1', 'id2'],
+	embeddings: embeddings,
+	documents: ['document1', 'document2'],
 });
 ```
 
